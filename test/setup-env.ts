@@ -1,0 +1,11 @@
+process.env.NODE_ENV ??= 'test';
+process.env.DATABASE_URL ??=
+  'postgresql://campaign:campaign@127.0.0.1:54329/campaign_dispatcher?schema=public';
+process.env.REDIS_HOST ??= '127.0.0.1';
+process.env.REDIS_PORT ??= '63799';
+process.env.JWT_SECRET ??= 'test-only-jwt-secret-value';
+process.env.WEBHOOK_SECRET ??= 'test-webhook-secret';
+process.env.MOCK_LATENCY_MS ??= '0';
+process.env.DISPATCH_CONCURRENCY ??= '4';
+process.env.DISPATCH_ATTEMPTS ??= '3';
+process.env.MOCK_REJECT_TO ??= '';

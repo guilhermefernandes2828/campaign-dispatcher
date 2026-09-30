@@ -1,0 +1,122 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Channel {
+  WHATSAPP
+  ADS
+}
+
+enum CampaignStatus {
+  QUEUED
+  DISPATCHING
+  COMPLETED
+  FAILED
+}
+
+enum DispatchStatus {
+  PENDING
+  QUEUED
+  SENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String     @map("password_hash")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  campaigns    Campaign[]
+  contacts     Contact[]
+
+  @@map("users")
+}
+
+model Campaign {
+  id         String         @id @default(cuid())
+  name       String
+  channel    Channel
+  message    String
+  status     CampaignStatus @default(QUEUED)
+  ownerId    String         @map("owner_id")
+  owner      User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+  dispatches Dispatch[]
+  sends      ProviderSend[]
+
+  @@index([ownerId])
+  @@map("campaigns")
+}
+
+model Contact {
+  id         String         @id @default(cuid())
+  ownerId    String         @map("owner_id")
+  owner      User           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  dedupeKey  String         @map("dedupe_key")
+  name       String?
+  phone      String?
+  externalId String?        @map("external_id")
+  createdAt  DateTime       @default(now()) @map("created_at")
+  dispatches Dispatch[]
+  sends      ProviderSend[]
+
+  @@unique([ownerId, dedupeKey])
+  @@map("contacts")
+}
+
+model Dispatch {
+  id                String          @id @default(cuid())
+  campaignId        String          @map("campaign_id")
+  contactId         String          @map("contact_id")
+  campaign          Campaign        @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact           Contact         @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  status            DispatchStatus  @default(QUEUED)
+  providerMessageId String?         @map("provider_message_id")
+  attempts          Int             @default(0)
+  lastError         String?         @map("last_error")
+  sentAt            DateTime?       @map("sent_at")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+  events            DeliveryEvent[]
+
+  @@unique([campaignId, contactId])
+  @@index([status])
+  @@map("dispatches")
+}
+
+model ProviderSend {
+  id                String   @id @default(cuid())
+  campaignId        String   @map("campaign_id")
+  contactId         String   @map("contact_id")
+  campaign          Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact           Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  channel           Channel
+  providerMessageId String   @map("provider_message_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  @@unique([campaignId, contactId])
+  @@map("provider_sends")
+}
+
+model DeliveryEvent {
+  id         String         @id @default(cuid())
+  dispatchId String         @map("dispatch_id")
+  dispatch   Dispatch       @relation(fields: [dispatchId], references: [id], onDelete: Cascade)
+  status     DispatchStatus
+  provider   Channel
+  dedupeKey  String         @unique @map("dedupe_key")
+  payload    Json
+  createdAt  DateTime       @default(now()) @map("created_at")
+
+  @@index([dispatchId])
+  @@map("delivery_events")
+}
